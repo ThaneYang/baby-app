@@ -74,6 +74,14 @@
 					<text class="cell-tit clamp">实付金额</text>
 					<text class="cell-tip" :class="'text-' + tempName">{{ moneySymbol }}{{ orderDetail.money }}</text>
 				</view>
+				<view class="yt-list-cell b-b">
+					<text class="cell-tit clamp">下单时间</text>
+					<text class="cell-tip" >{{ orderDetail.create_date | time }}</text>
+				</view>
+				<view class="yt-list-cell b-b" v-if="orderDetail.status === 1 || orderDetail.status === 1">
+					<text class="cell-tit clamp">支付时间</text>
+					<text class="cell-tip" >{{ orderDetail.pay_date | time }}</text>
+				</view>
 			</view>
 			<!-- 底部 -->
 			<view class="footer" v-if="orderDetail.status >= 0">
@@ -97,7 +105,7 @@
 					class="action-btn"
 					:class="'bg-' + tempName"
 					v-if="orderDetail.status == 0"
-					@tap="navTo(`/pages/pay/pay?order_no=${orderDetail.order_no}`)"
+					@tap="navTo(`/pages/pay/pay?order_no=${orderDetail.order_no}&sub_id=${orderDetail.custom.sub_id || ''}`)"
 				>
 					立即支付
 				</button>
@@ -146,18 +154,19 @@
 			@tap="toggleMask"
 		>
 			<view class="mask-content" @tap.stop.prevent="stopPrevent">
-				<div class="wp-title">获取方式一：</div>
+				<div class="wp-title">获取方式：</div>
 				<text class="wp-txt">{{web_disk}}</text>
 				<button @tap.stop="copyWebDisk" class="confirm-btn" :class="'bg-' + tempName">复制网盘链接</button>
-				<view class="tishi">复制网盘链接后打开百度网盘手机APP</view>
-				<div class="wp-title">获取方式二：</div>
+				<view class="tishi">复制网盘链接后打开“百度网盘”手机APP</view>
+				<!-- <div class="wp-title">获取方式二：</div>
 				<button @tap.stop="handleImg" class="confirm-btn" :class="'bg-' + tempName">显示二维码</button>
 				<view class="tishi">长按二维码即可获取文件</view>
-				<view class="tishi">若网盘地址失效请联系客服</view>
+				<view class="tishi">若网盘地址失效请联系客服</view> -->
 			</view>
 		</view>
 		<!-- <rf-kefu></rf-kefu> -->
 		<!-- 统一支付组件 -->
+		<!-- 只要用于取消订单，不用于支付 -->
 		<uni-pay ref="uniPay" height="70vh" return-url="/pages/order-detail/order-detail" logo="/static/logo.png"></uni-pay>
 	</view>
 </template>
@@ -165,6 +174,7 @@
 import moment from '@/common/moment';
 import mConstData from '@/config/constData.config';
 import rfNoData from '@/components/rf-no-data';
+const db = uniCloud.database();
 // import { orderClose } from '@/api/product';
 // import uniTag from '@/components/uni-tag/uni-tag';
 // import rfKefu from '@/components/rf-kefu';
@@ -207,49 +217,49 @@ export default {
 		};
 	},
 	computed: {
-		orderTimeLine() {
-			const timeLine = [];
-			if (this.orderDetail.created_at !== '0') {
-				timeLine.push({ time: this.orderDetail.created_at, value: '订单创建' });
-			}
-			if (
-				this.orderDetail.close_time <
-				(new Date().getTime() / 1000 && this.orderDetail.pay_time !== '0')
-			) {
-				timeLine.push({
-					time: this.orderDetail.close_time,
-					value: '未付款订单关闭时间'
-				});
-			}
-			if (this.orderDetail.pay_time !== '0') {
-				timeLine.push({ time: this.orderDetail.pay_time, value: '订单支付' });
-			}
-			if (this.orderDetail.shipping_time !== '0') {
-				timeLine.push({
-					time: this.orderDetail.shipping_time,
-					value: '买家要求发货'
-				});
-			}
-			if (this.orderDetail.consign_time !== '0') {
-				timeLine.push({
-					time: this.orderDetail.consign_time,
-					value: '卖家发货'
-				});
-			}
-			if (this.orderDetail.sign_time !== '0') {
-				timeLine.push({
-					time: this.orderDetail.sign_time,
-					value: '买家确认收货'
-				});
-			}
-			if (this.orderDetail.finish_time !== '0') {
-				timeLine.push({
-					time: this.orderDetail.finish_time,
-					value: '订单完成'
-				});
-			}
-			return timeLine.reverse();
-		}
+		// orderTimeLine() {
+		// 	const timeLine = [];
+		// 	if (this.orderDetail.created_at !== '0') {
+		// 		timeLine.push({ time: this.orderDetail.created_at, value: '订单创建' });
+		// 	}
+		// 	if (
+		// 		this.orderDetail.close_time <
+		// 		(new Date().getTime() / 1000 && this.orderDetail.pay_time !== '0')
+		// 	) {
+		// 		timeLine.push({
+		// 			time: this.orderDetail.close_time,
+		// 			value: '未付款订单关闭时间'
+		// 		});
+		// 	}
+		// 	if (this.orderDetail.pay_time !== '0') {
+		// 		timeLine.push({ time: this.orderDetail.pay_time, value: '订单支付' });
+		// 	}
+		// 	if (this.orderDetail.shipping_time !== '0') {
+		// 		timeLine.push({
+		// 			time: this.orderDetail.shipping_time,
+		// 			value: '买家要求发货'
+		// 		});
+		// 	}
+		// 	if (this.orderDetail.consign_time !== '0') {
+		// 		timeLine.push({
+		// 			time: this.orderDetail.consign_time,
+		// 			value: '卖家发货'
+		// 		});
+		// 	}
+		// 	if (this.orderDetail.sign_time !== '0') {
+		// 		timeLine.push({
+		// 			time: this.orderDetail.sign_time,
+		// 			value: '买家确认收货'
+		// 		});
+		// 	}
+		// 	if (this.orderDetail.finish_time !== '0') {
+		// 		timeLine.push({
+		// 			time: this.orderDetail.finish_time,
+		// 			value: '订单完成'
+		// 		});
+		// 	}
+		// 	return timeLine.reverse();
+		// }
 	},
 	filters: {
 		time(val) {
@@ -388,16 +398,23 @@ export default {
 				title: '加载中'
 			});
 			await uniCloud.callFunction({
-				name: 'getWebDisk',
+				name: 'getSubContent',
 				data: {
-					"id": this.orderDetail.custom.product_id
+					"order_no": this.order_no
 				},
 				success: (res) => {
 					uni.hideLoading();
 					console.log('执行成功', res.result)
-					this.web_disk = res.result.web_disk
-					this.web_disk_qr = res.result.web_disk_qr
-					this.toggleMask('show')
+					this.web_disk = res.result.sub_content
+					if (!res.result.success) {
+						wx.showModal({
+							content: res.result.message,
+							showCancel: false,
+						})
+					} else {
+						this.toggleMask('show')
+					}
+					// this.web_disk_qr = res.result.web_disk_qr
 				},
 				fail: () => {
 					uni.hideLoading();

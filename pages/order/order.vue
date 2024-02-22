@@ -57,9 +57,8 @@
 							:key="index"
 							class="rf-order-item"
 						>
-							<view class="i-top b-b">
+							<view class="i-top b-b" @tap="handleOrderOperation(item, 'detail')">
 								<text class="time in1line">订单号：{{ item.order_no }}</text>
-								<text class="time">{{item.create_date | time}}</text>
 								<text
 									class="state"
 									:class="'text-' + tempName"
@@ -78,9 +77,7 @@
 							</view>
 							<view
 								class="goods-box-single"
-								@tap.stop="
-									navTo(`/pages/product/product?id=${item.custom.product_id}`)
-								"
+								@tap="handleOrderOperation(item, 'detail')"
 							>
 								<!-- <image
 									class="goods-img"
@@ -92,11 +89,15 @@
 									<!-- <text class="attr-box">{{ item.product_price }}</text> -->
 								</view>
 							</view>
-							<view class="price-box">
-								共
-								<text class="num">{{ item.custom.product_count }}</text>
-								件商品 实付款
-								<text class="price" :class="'text-'+tempName">{{ moneySymbol }}{{ item.total_fee / 100 }}</text>
+							<view class="price-box" @tap="handleOrderOperation(item, 'detail')">
+								<text class="time">下单时间：{{item.create_date | time}}</text>
+								<view>
+									<!-- 共
+									<text class="num">{{ item.custom.product_count }}</text>
+									件商品 -->
+									实付
+									<text class="price" :class="'text-'+tempName">{{ moneySymbol }}{{ item.total_fee / 100 }}元</text>
+								</view>
 							</view>
 							<view class="action-box b-t">
 								<button
@@ -127,7 +128,7 @@
 									class="action-btn"
 									:class="'bg-' + tempName"
 									v-if="item.status == 0"
-									@tap="navTo(`/pages/pay/pay?order_no=${item.order_no}`)"
+									@tap="navTo(`/pages/pay/pay?order_no=${item.order_no}&sub_id=${item.custom.sub_id || ''}`)"
 								>
 									立即支付
 								</button>
@@ -495,6 +496,12 @@ page,
 	}
 	.uni-swiper-item {
 		height: auto;
+	}
+	.price-box {
+		display: flex;
+		justify-content: space-between;
+		padding-left: 0;
+		padding-right: 0;
 	}
 }
 </style>

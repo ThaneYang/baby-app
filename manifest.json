@@ -164,7 +164,6 @@
             "postcss" : true
         },
         "usingComponents" : true,
-        "betterScopedSlots" : true,
         "permission" : {
             "scope.userLocation" : {
                 "desc" : "演示在onShow生命周期获取地理位置"

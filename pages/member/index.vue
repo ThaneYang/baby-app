@@ -454,10 +454,17 @@ export default {
 			}
 		},
 		goToOrder() {
+			// #ifdef H5
 			let url = "http://xymall.weimayi.cn/pages/member/index"
 			uni.navigateTo({
 				url: `/pages/common/webview/webview?url=${url}`
 			})
+			// #endif
+			// #ifdef MP-WEIXIN
+			uni.navigateTo({
+				url: `/pages/order/order`
+			})
+			// #endif
 		},
 		/**
 		 *  会员卡下拉和回弹

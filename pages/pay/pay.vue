@@ -58,6 +58,11 @@
 <script>
 // import { orderDetail, memberInfo } from '@/api/userInfo';
 // import { configList } from '@/api/basic';
+const db = uniCloud.database();
+import {
+		store,
+		mutations
+	} from '@/uni_modules/uni-id-pages/common/store.js'
 export default {
 	data() {
 		return {
@@ -78,6 +83,8 @@ export default {
 			type: "goods", // 支付回调类型 如 recharge 代表余额充值 goods 代表商品订单（可自定义，任意英文单词都可以，只要你在 uni-pay-co/notify/目录下创建对应的 xxx.js文件进行编写对应的回调逻辑即可）
 			qr_code: false, // 是否强制使用扫码支付
 			openid:"", // 微信公众号需要
+			userOpenid:"", // 用户open，小程序订阅需要
+			sub_id: "", // 订阅id
 			custom:{
 				// a: "a",
 				// b: 1
@@ -89,6 +96,9 @@ export default {
 		};
 	},
 	computed: {
+		userInfo() {
+			return store.userInfo
+		},
 		h5Env(){
 			// #ifdef H5
 			let ua = window.navigator.userAgent.toLowerCase();
@@ -126,6 +136,10 @@ export default {
 	},
 	onLoad(options) {
 		this.getOrderDetail(options.order_no);
+		if (options.sub_id) {
+			// 说明是从订单详情页跳过来的，可能已经带了订阅id了
+			this.sub_id = options.sub_id
+		}
 		// #ifdef H5
 		// 微信公众号特殊逻辑开始-----------------------------------------------------------
 		// 以下代码仅为获取openid，正常你自己项目应该是登录后才能支付，登录后已经拿到openid，无需编写下面的代码
@@ -153,8 +167,68 @@ export default {
 		}
 		// 微信公众号特殊逻辑结束-----------------------------------------------------------
 		// #endif
+		
+		// #ifdef MP-WEIXIN
+		if (wx.getStorageSync('uni-id-pages-userInfo')) {
+			this.userOpenid = wx.getStorageSync('uni-id-pages-userInfo').wx_openid['mp']
+		}
+		// #endif
+		console.log('this.userOpenid', this.userOpenid)
 	},
 	methods: {
+		// 订阅更新，用户同意或取消订阅，都进行下一步
+		async newSub() {
+			// #ifdef H5
+			return Promise.resolve()
+			// #endif
+			return new Promise(async (resolve, reject) => {
+				wx.requestSubscribeMessage({
+					tmplIds: ['BGDtqTK8U_x3AkW9ARx6aiyHF4hjEWWsntZz4KyTCyA'],
+					success: async (res) => {
+						console.log('res', res)
+						if (res['BGDtqTK8U_x3AkW9ARx6aiyHF4hjEWWsntZz4KyTCyA'] === 'accept') {
+							console.log('用户同意订阅')
+							let res2 = await uniCloud.callFunction({
+								name: 'updatePaySub',
+								data: {
+									user_id: this.userInfo._id,
+									openid: this.userOpenid,
+									product_id: this.product_id,
+									product_name: this.product_name,
+									template_id: 'BGDtqTK8U_x3AkW9ARx6aiyHF4hjEWWsntZz4KyTCyA', // 订阅模版id
+									order_no: this.order_no,
+									total_fee: this.total_fee, // 支付金额，单位分 100 = 1元
+								}
+							})
+							this.sub_id = res2.result.sub_id
+							console.log('res2', res2)
+							resolve('订阅成功')
+						} else {
+							// 用户取消订阅，也让他可以收藏
+							let res3 = await uniCloud.callFunction({
+								name: 'updatePaySub',
+								data: {
+									user_id: this.userInfo._id,
+									openid: this.userOpenid,
+									product_id: this.product_id,
+									product_name: this.product_name,
+									template_id: '', // 订阅模版id
+									order_no: this.order_no,
+									total_fee: this.total_fee, // 支付金额，单位分 100 = 1元
+								}
+							})
+							this.sub_id = res3.result.sub_id
+							console.log('res3', res3)
+							resolve('取消订阅')
+						}
+					},
+					fail: (err) => {
+						// 订阅报错
+						reject(err)
+					}
+				})
+			})
+		},
 		// 支付接口错误
 		onFail() {
 			console.log('支付接口错误')
@@ -249,13 +323,12 @@ export default {
 		 * 在调用此api前，你应该先创建自己的业务系统订单，并获得订单号 order_no，把order_no当参数传给此api，而示例中为了简化跟支付插件无关的代码，这里直接已时间戳生成了order_no
 		 */
 		createOrder(provider){
-			if (wx.getStorageSync('uni-id-pages-userInfo')) {
-				this.openid = wx.getStorageSync('uni-id-pages-userInfo').wx_openid['mp-weixin']
-			}
+			console.log('this.sub_id', this.sub_id)
 			this.custom = {
 				product_id: this.product_id,
 				product_name: this.product_name,
-				product_count: this.product_count
+				product_count: this.product_count,
+				sub_id: this.sub_id,
 			}
 			this.description = this.product_name + '支付订单'
 			// 发起支付
@@ -268,6 +341,7 @@ export default {
 				type: this.type, // 支付回调类型
 				openid: this.openid, // 微信公众号需要
 				custom: this.custom, // 自定义数据
+				sub_id: this.sub_id,
 			});
 		},
 		// 获取公众号code
@@ -318,6 +392,14 @@ export default {
 						console.log('执行成功+1', res.result)
 					}
 				})
+				// 订阅表的支付状态改为支付成功
+				db.collection('sub')
+				.where({
+					_id: this.sub_id
+				})
+				.update({
+					user_order_success: true
+				})
 			} else {
 				// 代表用户已付款，但你自己写的回调执行失败（通常是因为你的回调代码有问题）
 				console.log('代表用户已付款，但你自己写的回调执行失败（通常是因为你的回调代码有问题）')
@@ -344,6 +426,10 @@ export default {
 		},
 		// 确认支付
 		async confirm() {
+			if (!this.sub_id) {
+				// 如果从订单详情跳转过来，并且已经订阅过的，则不需要再订阅
+				await this.newSub()
+			}
 			this.btnLoading = true;
 			setTimeout(() => {
 				this.btnLoading = false;
